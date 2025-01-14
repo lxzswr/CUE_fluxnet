@@ -1,4 +1,4 @@
-% Version 1 of the code - Xiangzhong (Remi) Luo, Oct 22, 2024
+% Version 1 of the code - Xiangzhong (Remi) Luo, Oct 22, 2024 -> Jan 14, 2025.
 
 % This is the code to estimate Carbon Use Efficiency (CUE) from eddy covariance measurements.
 
