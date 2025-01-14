@@ -1,17 +1,16 @@
 %%%%% Instruction %%%%%%
 
     %%% Estimate Carbon Use Efficiency (CUE) from eddy covariance observations
-    %%% By Xiangzhong (Remi) Luo, Oct 14th, 2024 
+    %%% By Xiangzhong (Remi) Luo, Jan 14th, 2025 
     %%% At Department of Geography, NUS
     
     %%% Version 1.
-    %%% This is the main function.
 
 
 %%%%% STEP 1: Read the eddy covariance dataset
 
     %%% Any flux dataset organized in FLUXNET2015/ONEFLUX format can be used
-    file_loc = 'FLX_US-Ha1_FLUXNET2015_FULLSET_DD_1991-2012_1-3.csv';
+    file_loc = '/Users/xiangzhongluo/Library/CloudStorage/Dropbox/Data/Fluxnet_pipeline_data/FLX_US-Ha1_FLUXNET2015_FULLSET_DD_1991-2012_1-3.csv';
     site_name = 'US-Ha1';
 
 
@@ -29,10 +28,19 @@
 %%%%% STEP 3:  print the result, mean CUE value and uncertainty for each year
 
     disp(site_name);
-    disp(['year ','CUE ','CUE_sd']);
-
+    disp(['year','gR','CUE','Ea','tau','gR_sd','CUE_sd','Ea_sd','tau_sd']);
     format shortG;
     disp(CUE_output);
+
+    CUE_site_year = array2table(CUE_output, 'VariableNames', {'year','gR','CUE','Ea','tau','gR_sd','CUE_sd','Ea_sd','tau_sd'});
+
+
+
+
+
+
+
+
 
 
 
