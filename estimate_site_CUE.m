@@ -2,10 +2,6 @@
 
 function CUE_output = estimate_site_CUE(fluxdata)
 
-    % MCMC code directiry
-    mcmc_dir = [pwd,'/mcmcstat-master/'];
-    cd(mcmc_dir);
-
     warning off;
     %%% time variables to be used
     month_day = [31,28,31,30,31,30,31,31,30,31,30,31]; % numbers of days in each month
@@ -36,8 +32,14 @@ function CUE_output = estimate_site_CUE(fluxdata)
         doy_thisyear = doy(ind); % get the doy of this year
 
         %%% select the gpp and reco columes in the dataset        
-        gpp = fluxdata(ind,12); % GPP_DT
-        reco = fluxdata(ind,16); % Reco_DT
+        gpp_DT = fluxdata(ind,12); % GPP_DT
+        reco_DT = fluxdata(ind,16); % Reco_DT
+        gpp_NT = fluxdata(ind,11); % GPP_NT
+        reco_NT = fluxdata(ind,15); % Reco_NT
+
+        % get the GPP from the average of NT and DT
+        gpp = (gpp_DT + gpp_NT).*0.5;
+        reco = (reco_DT + reco_NT).*0.5;
 
         
         %%% briefly clean the dataset, obtain cummulative GPP
@@ -78,6 +80,7 @@ function CUE_output = estimate_site_CUE(fluxdata)
                 
                  
                 % Start to run MCMC
+                cd('/Users/xiangzhongluo/Dropbox/Code/carbon_cost/code');
                 model.ssfun = @est_CUE_ss2;
                 
                 % initiate the range of parameters
@@ -90,18 +93,22 @@ function CUE_output = estimate_site_CUE(fluxdata)
                 options.nsimu = 200;
                 
                 % excute MCMC
+                cd('/Users/xiangzhongluo/Dropbox/Code/carbon_cost/code/mcmcstat-master/');
                 [res,chain] = mcmcrun(model,data,params,options);
                 
                 % output of MCMC
                 site_output(count,1) = years_unique(yy);
                 site_output(count,2) = t_c;
                 site_output(count,3:6) = res.mean; % gR, mR, CUE and tau
-                site_output(count,7:10) = nanmean(cli_data(t_index,:),1); % climate data for the period.
+                site_output(count,7:10) = nanmean(cli_data(t_index,:),1); % climate data for the period.                     
+                site_output(count,11:14) = nanstd(chain,1,1); % uncertainty of the four parameters
 
                 count = count + 1;
             end 
         end
     end
+
+
 
     %%% Conduct the second round of MCMC (Markov chain Monte Carlo)
     %%% the function to be optimized is deltaReco = gR*CUE*deltaGPP + mR*CUE*delta_cumGPP*(1-tau).
@@ -113,6 +120,12 @@ function CUE_output = estimate_site_CUE(fluxdata)
          mR_fixed = nanmean(site_output(:,4));
          CUE_fixed = nanmean(site_output(:,5));
          tau_fixed = nanmean(site_output(:,6));
+
+
+         gR_un_fixed = nanmean(site_output(:,11));
+         mR_un_fixed = nanmean(site_output(:,12));
+         CUE_un_fixed = nanmean(site_output(:,13));
+         tau_un_fixed = nanmean(site_output(:,14));
 
          mR0 = prctile(site_output(:,4),10); %baseline mR
     
@@ -127,8 +140,14 @@ function CUE_output = estimate_site_CUE(fluxdata)
             doy_thisyear = doy(ind); % get the doy of this year
     
             %%% select the gpp and reco columes in the dataset        
-            gpp = fluxdata(ind,12); % GPP_DT
-            reco = fluxdata(ind,16); % Reco_DT
+            gpp_DT = fluxdata(ind,12); % GPP_DT
+            reco_DT = fluxdata(ind,16); % Reco_DT
+            gpp_NT = fluxdata(ind,11); % GPP_NT
+            reco_NT = fluxdata(ind,15); % Reco_NT
+    
+            % get the GPP from the average of NT and DT
+            gpp = (gpp_DT + gpp_NT).*0.5;
+            reco = (reco_DT + reco_NT).*0.5;
     
             
             %%% briefly clean the dataset, obtain cummulative GPP
@@ -176,27 +195,54 @@ function CUE_output = estimate_site_CUE(fluxdata)
                             data.xdata7 = t_c + 0.5;
                              
                             % MCMC
+                            cd('/Users/xiangzhongluo/Dropbox/Code/carbon_cost/code');
                             model.ssfun = @est_CUE_fixed_ss2;
-
     
                             params = {
                                 {'kb1', CUE_fixed, 0.1, 1}  %CUE, dynamic from last MCM
-                                {'kb2', 0.65, 0, 1.2} % Ea not Q10;
+                                {'kb2', 0.65, 0, 1.2} % Ea;
                                 };
     
                             options.nsimu = 200;
                             
-                            cd(mcmc_dir);
+                            cd('/Users/xiangzhongluo/Dropbox/Code/carbon_cost/code/mcmcstat-master/');
                             [res,chain] = mcmcrun(model,data,params,options);
 
-                            site_output2(count2,1) = years_unique(yy);
-                            site_output2(count2,2) = t_c;
-                            site_output2(count2,3) = gR_fixed;
-                            site_output2(count2,4:5) = res.mean; %CUE, Q10
-                            site_output2(count2,6) = tau_fixed;
-                            site_output2(count2,7:10) = nanmean(cli_data(t_index,:),1); % climate data for the period.
-    
-                            count2 = count2 + 1;
+                            if abs(res.mean(1) - CUE_fixed) > 0.001 & abs(res.mean(2) - 0.65) > 0.01 % check if the constrain function is really useful
+
+                                site_output2(count2,1) = years_unique(yy);
+                                site_output2(count2,2) = t_c;
+                                site_output2(count2,3) = gR_fixed;
+                                site_output2(count2,4:5) = res.mean; %CUE, Ea
+                                site_output2(count2,6) = tau_fixed;
+                                site_output2(count2,7:10) = nanmean(cli_data(t_index,:),1); % climate data for the period.
+                                site_output2(count2,11) = gR_un_fixed;
+                                site_output2(count2,12:13) = nanstd(chain,1,1); % uncertainty of CUE and Ea resulting from MCMC
+                                site_output2(count2,14) = tau_un_fixed;
+        
+                                count2 = count2 + 1;
+                            else
+                                site_output2(count2,1) = years_unique(yy);
+                                site_output2(count2,2) = t_c;
+                                site_output2(count2,3) = gR_fixed;
+                                    if count2-1>0
+                                        site_output2(count2,4:5) = site_output2(count2-1,4:5); %CUE, Ea
+                                    else
+                                        site_output2(count2,4:5) = res.mean;
+                                    end
+                                site_output2(count2,6) = tau_fixed;
+                                site_output2(count2,7:10) = nanmean(cli_data(t_index,:),1); % climate data for the period.
+
+                                site_output2(count2,11) = gR_un_fixed;
+                                    if count2-1>0
+                                        site_output2(count2,12:13) = site_output2(count2-1,4:5); %uncertainty in CUE, Ea
+                                    else
+                                        site_output2(count2,12:13) = nanstd(chain,1,1); 
+                                    end
+                                site_output2(count2,14) = tau_un_fixed;
+
+                                count2 = count2 + 1;
+                            end
                         end
                    end
 
@@ -204,9 +250,28 @@ function CUE_output = estimate_site_CUE(fluxdata)
                    % the final output of annual CUE and associated metrics
                    y_ind = site_output2(:,1) == years_unique(yy);
 
+                   %%%%%%%% Using bootstrapping to get site mean value and Uncertainty (MCMC and temporal variation)
                    CUE_output(yy,1) = years_unique(yy); %year
-                   CUE_output(yy,2) = nanmean(site_output2(y_ind,4)); %CUE_mean
-                   CUE_output(yy,3) = nanstd(site_output2(y_ind,4),1,1); %CUE_sd
+                   
+                    if sum(y_ind) > 0 %only if there is a valid MCMC
+                    
+                        parameters_all = []; % bootstrapping 1000 times
+                         for cc = 1:1000
+                            tmp1 = normrnd(site_output2(y_ind,3:6),site_output2(y_ind,11:14)); %randomly generate one value using mean and MCMC uncertainty
+                            parameters_all(cc,:,:) = tmp1;
+                         end
+                        
+                         % get the mean and unc for the four parameters
+                         for pp = 1:4
+                              CUE_output(yy,pp+1) = nanmean(reshape(parameters_all(:,:,pp),[],1)); %gR, CUE, Ea, tau
+                              CUE_output(yy,pp+5) = nanstd(reshape(parameters_all(:,:,pp),[],1),1,1); %unc of gR, CUE, Ea, tau
+                         end
+                    
+                    
+                     else
+                            CUE_output(yy,:) = NaN;
+                     end
+
 
               end
          end
